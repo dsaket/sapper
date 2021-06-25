@@ -22,7 +22,8 @@ import { TLSSocket } from 'tls';
 
 export function get_page_handler(
 	manifest: Manifest,
-	session_getter: (req: SapperRequest, res: SapperResponse) => Promise<any>
+	session_getter: (req: SapperRequest, res: SapperResponse) => Promise<any>,
+	atomizerFunction? : (htmlContent: String) => String
 ) {
 	const get_build_info = dev
 		? () => JSON.parse(fs.readFileSync(path.join(build_dir, 'build.json'), 'utf-8'))
@@ -376,12 +377,18 @@ export function get_page_handler(
 				styles = (css && css.code ? `<style${nonce_attr}>${css.code}</style>` : '');
 			}
 
+			let criticalCss = "";
+			if (atomizerFunction) {
+				const criticalCssContent = atomizerFunction(html) || "";
+				criticalCss = criticalCssContent ? `<style>${criticalCssContent}</style>` : "";
+			}
+
 			const body = template()
 				.replace('%sapper.base%', () => `<base href="${req.baseUrl}/">`)
 				.replace('%sapper.scripts%', () => `<script${nonce_attr}>${script}</script>`)
 				.replace('%sapper.html%', () => html)
 				.replace('%sapper.head%', () => head)
-				.replace('%sapper.styles%', () => styles)
+				.replace('%sapper.styles%', () => `${styles}${criticalCss}`)
 				.replace(/%sapper\.cspnonce%/g, () => nonce_value);
 
 			res.statusCode = status;
